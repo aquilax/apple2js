@@ -74,7 +74,7 @@ if (canvas4) {
     options.screen[3] = options.screen[0];
 }
 
-var apple2 = new Apple2(options);
+export var apple2 = new Apple2(options);
 var io = apple2.getIO();
 
 var printer = new Printer('#printer-modal .paper');

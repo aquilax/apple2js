@@ -15,10 +15,11 @@ export function Apple2(options) {
 
     var paused = false;
 
-    var DEBUG = false;
+    var DEBUG = true;
     var TRACE = false;
     var MAX_TRACE = 256;
     var trace = [];
+    var breakpoints = {};
 
     var runTimer = null;
     var runAnimationFrame = null;
@@ -87,12 +88,15 @@ export function Apple2(options) {
 
             if (DEBUG) {
                 cpu.stepCyclesDebug(TRACE ? 1 : step, function() {
-                    var line = cpu.dumpRegisters() + ' ' +
-                        cpu.dumpPC(undefined, SYMBOLS);
+                    var info = cpu.getDebugInfo();
+                    if (info[0] in breakpoints && breakpoints[info[0](info)]) {
+                        debug(cpu.printDebugInfo(info, SYMBOLS));
+                        stop();
+                    }
                     if (TRACE) {
-                        debug(line);
+                        debug(cpu.printDebugInfo(info, SYMBOLS));
                     } else {
-                        trace.push(line);
+                        trace.push(info);
                         if (trace.length > MAX_TRACE) {
                             trace.shift();
                         }
@@ -189,6 +193,18 @@ export function Apple2(options) {
 
         getVideoModes: function () {
             return vm;
+        },
+
+        setDebug: function (on) {
+            DEBUG = on;
+        },
+
+        getTrace: function () {
+            return trace.map((info) => cpu.printDebugInfo(info, SYMBOLS)).join('\n');
+        },
+
+        setBreakpoint: function(bp, exp) {
+            breakpoints[bp] = exp || function() { return true; };
         }
     };
 }

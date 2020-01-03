@@ -86,7 +86,7 @@ if (canvas4) {
     options.screen[3] = options.screen[0];
 }
 
-var apple2 = new Apple2(options);
+export var apple2 = new Apple2(options);
 var cpu = apple2.getCPU();
 var io = apple2.getIO();
 

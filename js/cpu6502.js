@@ -215,10 +215,6 @@ export default function CPU6502(options)
         return readByte(addr) | (readByte(addr + 1) << 8);
     }
 
-    function readWordDebug(addr) {
-        return readByteDebug(addr) | (readByteDebug(addr + 1) << 8);
-    }
-
     function readWordPC() {
         return readBytePC() | (readBytePC() << 8);
     }
@@ -1304,7 +1300,23 @@ export default function CPU6502(options)
         opary[idx] = ops[idx] || unknown(idx);
     }
 
-    function dumpArgs(addr, m, symbols) {
+    function dumpRawOp(parts) {
+        var result = new Array(4);
+        for (var idx = 0; idx < 4; idx++) {
+            if (idx < parts.length) {
+                result[idx] = toHex(parts[idx]);
+            } else {
+                result[idx] = '  ';
+            }
+        }
+        return result.join(' ');
+    }
+
+    function dumpOp(pc, parts, symbols) {
+        var op = opary[parts[0]];
+        var lsb = parts[1];
+        var msb = parts[2];
+        var addr = (msb << 8) | lsb;
         var val;
         var off;
         function toHexOrSymbol(v, n) {
@@ -1314,67 +1326,68 @@ export default function CPU6502(options)
                 return '$' + toHex(v, n);
             }
         }
-        var result = '';
-        switch (m) {
+
+        var result = op[0] + ' ';
+        switch (op[3]) {
         case modes.implied:
             break;
         case modes.immediate:
-            result = '#' + toHexOrSymbol(readByteDebug(addr));
+            result += '#' + toHexOrSymbol(lsb);
             break;
         case modes.absolute:
-            result = '' + toHexOrSymbol(readWordDebug(addr), 4);
+            result += '' + toHexOrSymbol(addr, 4);
             break;
         case modes.zeroPage:
-            result = '' + toHexOrSymbol(readByteDebug(addr));
+            result += '' + toHexOrSymbol(lsb);
             break;
         case modes.relative:
             {
-                off = readByteDebug(addr);
+                off = lsb;
                 if (off > 127) {
                     off -= 256;
                 }
-                addr += off + 1;
-                result = '' + toHexOrSymbol(addr, 4) + ' (' + off + ')';
+                pc += off + 1;
+                result += '' + toHexOrSymbol(pc, 4) + ' (' + off + ')';
             }
             break;
         case modes.absoluteX:
-            result = '' + toHexOrSymbol(readWordDebug(addr), 4) + ',X';
+            result += '' + toHexOrSymbol(addr, 4)+ ',X';
             break;
         case modes.absoluteY:
-            result = '' + toHexOrSymbol(readWordDebug(addr), 4) + ',Y';
+            result += '' + toHexOrSymbol(addr, 4) + ',Y';
             break;
         case modes.zeroPageX:
-            result = '' + toHexOrSymbol(readByteDebug(addr)) + ',X';
+            result += '' + toHexOrSymbol(lsb) + ',X';
             break;
         case modes.zeroPageY:
-            result = '' + toHexOrSymbol(readByteDebug(addr)) + ',Y';
+            result += '' + toHexOrSymbol(lsb) + ',Y';
             break;
         case modes.absoluteIndirect:
-            result = '(' + toHexOrSymbol(readWordDebug(addr), 4) + ')';
+            result += '(' + toHexOrSymbol(addr, 4) + ')';
             break;
         case modes.zeroPageXIndirect:
-            result = '(' + toHexOrSymbol(readByteDebug(addr)) + ',X)';
+            result += '(' + toHexOrSymbol(lsb) + ',X)';
             break;
         case modes.zeroPageIndirectY:
-            result = '(' + toHexOrSymbol(readByteDebug(addr)) + '),Y';
+            result += '(' + toHexOrSymbol(lsb) + '),Y';
             break;
         case modes.accumulator:
-            result = 'A';
+            result += 'A';
             break;
         case modes.zeroPageIndirect:
-            result = '(' + toHexOrSymbol(readByteDebug(addr)) + ')';
+            result += '(' + toHexOrSymbol(lsb) + ')';
             break;
         case modes.absoluteXIndirect:
-            result = '(' + toHexOrSymbol(readWordDebug(addr), 4) + ',X)';
+            result += '(' + toHexOrSymbol(addr, 4) + ',X)';
             break;
         case modes.zeroPage_relative:
-            val = readByteDebug(addr);
-            off = readByteDebug(addr + 1);
+            val = lsb;
+            off = msb;
             if (off > 127) {
                 off -= 256;
             }
-            addr += off + 2;
-            result = '' + toHexOrSymbol(val) + ',' + toHexOrSymbol(addr, 4) + ' (' + off + ')';
+            pc += off + 2;
+            result += '' + toHexOrSymbol(val) + ',' + toHexOrSymbol(pc, 4) + ' (' + off + ')';
             break;
         default:
             break;
@@ -1383,18 +1396,25 @@ export default function CPU6502(options)
     }
 
     return {
-        step: function cpu_step(cb) {
+        step: function cpu_step() {
             sync = true;
             var op = opary[readBytePC()];
             sync = false;
             op[1](op[2]);
+        },
 
-            if (cb) {
-                cb(this);
+        stepN: function cpu_stepN(n) {
+            var op, idx;
+
+            for (idx = 0; idx < n; idx++) {
+                sync = true;
+                op = opary[readBytePC()];
+                sync = false;
+                op[1](op[2]);
             }
         },
 
-        stepDebug: function(n, cb) {
+        stepNDebug: function(n, cb) {
             var op, idx;
 
             for (idx = 0; idx < n; idx++) {
@@ -1403,9 +1423,7 @@ export default function CPU6502(options)
                 sync = false;
                 op[1](op[2]);
 
-                if (cb) {
-                    cb(this);
-                }
+                cb(this);
             }
         },
 
@@ -1420,8 +1438,7 @@ export default function CPU6502(options)
             }
         },
 
-        stepCyclesDebug: function(c, cb)
-        {
+        stepCyclesDebug: function(c, cb) {
             var op, end = cycles + c;
 
             while (cycles < end) {
@@ -1430,9 +1447,7 @@ export default function CPU6502(options)
                 sync = false;
                 op[1](op[2]);
 
-                if (cb) {
-                    cb(this);
-                }
+                cb(this);
             }
         },
 
@@ -1496,11 +1511,55 @@ export default function CPU6502(options)
             pc = _pc;
         },
 
+        getDebugInfo() {
+            var b = readByteDebug(pc);
+            var op = ops[b];
+            var size = sizes[op[3]];
+            var cmd = new Array(size);
+            cmd[0] = b;
+            for (var idx = 1; idx < size; idx++) {
+                cmd[idx] = readByteDebug(pc + idx);
+            }
+
+            return [pc, ar, xr, yr, sr, sp, cmd];
+        },
+
+        printDebugInfo(info, symbols) {
+            var symbol = '          ';
+            if (symbols && symbols[info[0]]) {
+                symbol = symbols[info[0]];
+                symbol +=  '          '.substring(symbol.length);
+            }
+
+            return [
+                toHex(info[0], 4),
+                '- ', symbol,
+                ' A=', toHex(info[1]),
+                ' X=', toHex(info[2]),
+                ' Y=', toHex(info[3]),
+                ' P=', toHex(info[4]),
+                ' S=', toHex(info[5]),
+                ' ',
+                ((info[4] & flags.N) ? 'N' : '-'),
+                ((info[4] & flags.V) ? 'V' : '-'),
+                '-',
+                ((info[4] & flags.B) ? 'B' : '-'),
+                ((info[4] & flags.D) ? 'D' : '-'),
+                ((info[4] & flags.I) ? 'I' : '-'),
+                ((info[4] & flags.Z) ? 'Z' : '-'),
+                ((info[4] & flags.C) ? 'C' : '-'),
+                ' ',
+                dumpRawOp(info[6]),
+                ' ',
+                dumpOp(info[0], info[6], symbols)
+            ].join('');
+        },
+
         dumpPC: function(_pc, symbols) {
             if (_pc === undefined) {
                 _pc = pc;
             }
-            var b = readByte(_pc, true),
+            var b = readByteDebug(_pc),
                 op = ops[b],
                 size = sizes[op[3]],
                 result = toHex(_pc, 4) + '- ';
@@ -1514,18 +1573,12 @@ export default function CPU6502(options)
                 }
             }
 
-            for (var idx = 0; idx < 4; idx++) {
-                if (idx < size) {
-                    result += toHex(readByte(_pc + idx, true)) + ' ';
-                } else {
-                    result += '   ';
-                }
+            var cmd = new Array(size);
+            for (var idx = 0; idx < size; idx++) {
+                cmd[idx] = readByteDebug(_pc + idx);
             }
 
-            if (op === undefined)
-                result += '??? (' + toHex(b) + ')';
-            else
-                result += op[0] + ' ' + dumpArgs(_pc + 1, op[3], symbols);
+            result += dumpRawOp(cmd) + ' ' + dumpOp(_pc, cmd, symbols);
 
             return result;
         },
@@ -1548,7 +1601,7 @@ export default function CPU6502(options)
                     }
                     result += '        ';
                     for (jdx = 0; jdx < 16; jdx++) {
-                        b = readByte(page * 256 + idx * 16 + jdx, true) & 0x7f;
+                        b = readByteDebug(page * 256 + idx * 16 + jdx, true) & 0x7f;
                         if (b >= 0x20 && b < 0x7f) {
                             result += String.fromCharCode(b);
                         } else {
@@ -1567,7 +1620,7 @@ export default function CPU6502(options)
             }
             var results = [];
             for (var jdx = 0; jdx < 20; jdx++) {
-                var b = readByte(_pc), op = ops[b];
+                var b = readByteDebug(_pc), op = ops[b];
                 results.push(this.dumpPC(_pc, symbols));
                 _pc += sizes[op[3]];
             }

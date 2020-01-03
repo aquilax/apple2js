@@ -469,13 +469,15 @@ export default function MMU(cpu, vm, lores1, lores2, hires1, hires2, io, rom)
             if (val !== undefined) {
                 _altzp = false;
                 _debug('Alt ZP Off');
-            }
+            } else
+                result = 0;
             break;
         case LOC.ALTZPON: // 0x09
             if (val !== undefined) {
                 _altzp = true;
                 _debug('Alt ZP On');
-            }
+            } else
+                result = 0;
             break;
         case LOC.SLOTC3ROMOFF: // 0x0A
             if (val !== undefined) {
