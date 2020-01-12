@@ -1346,7 +1346,7 @@ export default function CPU6502(options)
                 if (off > 127) {
                     off -= 256;
                 }
-                pc += off + 1;
+                pc += off + 2;
                 result += '' + toHexOrSymbol(pc, 4) + ' (' + off + ')';
             }
             break;
@@ -1386,7 +1386,7 @@ export default function CPU6502(options)
             if (off > 127) {
                 off -= 256;
             }
-            pc += off + 2;
+            pc += off + 3;
             result += '' + toHexOrSymbol(val) + ',' + toHexOrSymbol(pc, 4) + ' (' + off + ')';
             break;
         default:

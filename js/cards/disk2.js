@@ -13,7 +13,7 @@ import { base64_decode, base64_encode } from '../base64';
 import { debug, toHex } from '../util';
 import { jsonDecode, jsonEncode, readSector } from '../formats/format_utils';
 
-import { P5_16, P5_13 } from '../roms/cards/disk2';
+import { P5A, P5 } from '../roms/cards/disk2';
 
 import _2MG from '../formats/2mg';
 import D13 from '../formats/d13';
@@ -425,7 +425,7 @@ export default function DiskII(io, callbacks, sectors = 16)
         if (callbacks.dirty) { callbacks.dirty(_drive, dirty); }
     }
 
-    var _P5 = sectors == 16 ? P5_16 : P5_13;
+    var _P5 = sectors == 16 ? P5A : P5;
 
     _init();
 

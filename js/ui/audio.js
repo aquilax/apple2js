@@ -34,7 +34,8 @@ export default function Audio(io) {
             var idx = 0;
 
             var len = data.length;
-            if (sample) {
+            if (sample && sample.length) {
+                debug('sample.length', sample.length);
                 len = Math.min(sample.length, len);
                 for (; idx < len; idx++) {
                     data[idx] = sample[idx];
